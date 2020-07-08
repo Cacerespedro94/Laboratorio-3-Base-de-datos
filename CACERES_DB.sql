@@ -380,6 +380,7 @@ values (@IdCliente, @Cantidad,@Total,@Fecha)
 
 go
 
+go
 create procedure spAgregarProductos_Por_Ventas --PRODUCTOS-POR-VENTAS--AGREGAR
 @IdVenta int,
 @IdProducto int,
@@ -391,6 +392,19 @@ insert into Productos_Por_Ventas(IdVenta,IdProducto,CantidadUnidades,Precio)
 values (@IdVenta, @IdProducto,@CantidadUnidades,@Precio)
 
 go
+
+exec spAgregarVenta 3,3,4000,'2020-03-03'
+exec spAgregarVenta 2,2,3000,'2020-03-03'
+exec spAgregarVenta 3,5,6000,'2020-03-03'
+exec spAgregarVenta 2,3,7000,'2018-03-03'
+
+exec spAgregarProductos_Por_Ventas 1,3,2,3200
+exec spAgregarProductos_Por_Ventas 2,1,1,3200
+exec spAgregarProductos_Por_Ventas 3,5,1,2500
+exec spAgregarProductos_Por_Ventas 4,3,10,2500
+
+go
+
 
 --Create procedure spVentas_x_Usuario --
 --@IdCliente int,
@@ -639,15 +653,21 @@ inner join Producto as P on P.Id = PxV.IdProducto
 
 go
 
+--(cast(datediff(dd,FechaNac,GETDATE()) / 365.25 as int))as 'Edad' 
 
 Create view vwListarRankingProductos
 
 as 
 
-Select Top 5 p.Id, p.Nombre, p.Precio, p.Descripcion, Sum(ppv.CantidadUnidades) as CantidadVendidas
+Select top 10 p.Id, p.Nombre, p.Precio, p.Descripcion, Sum(ppv.CantidadUnidades) as CantidadVendidas, v.Fecha
 from Producto as p
-inner join Productos_Por_Ventas as PpV on PpV.IdProducto = p.Id
-group by p.id,p.Nombre,p.Precio,p.Descripcion,p.IdCategoria
+inner join Productos_Por_Ventas as PpV on PpV.IdProducto = p.Id 
+inner join Ventas as v on v.id = ppv.IdVenta
+group by p.id,p.Nombre,p.Precio,p.Descripcion,p.IdCategoria,v.Fecha,v.Id
+
+having 1 > (select cast(datediff(dd,v.Fecha,GETDATE()) / 365.25 as int) as [Nueva] from ventas as ve 
+where ve.Id = v.Id
+)
 order by CantidadVendidas desc
 
 go
@@ -657,7 +677,6 @@ Create procedure spListarVentasCliente
 @IdVenta int
 
 as
-
 
 select P.Nombre, p.Precio, v.Fecha, v.Id as Venta, PxV.CantidadUnidades, p.ImagenUrl
 
@@ -682,3 +701,4 @@ go
 --order by PrecioRecaudado desc
 --where v.
 --go
+
