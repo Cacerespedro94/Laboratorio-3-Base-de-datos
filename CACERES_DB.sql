@@ -1,8 +1,13 @@
 use master
+
 Create database CACERES_DB
+
 go
+
 use CACERES_DB
+
 go
+
 Create table Categoria(
 Id bigint not null primary key identity (1,1),
 Nombre varchar(100) not null,
@@ -45,12 +50,14 @@ Telefono varchar(100) not null,
 )
 
 go
+
 Create table  TipoUsuario(
 Id int not null primary key identity (1,1),
 Nombre varchar(50)
 )
 
 go
+
 Create table Usuario(
 Id int not null primary key identity (1,1),
 IngresoSesion varchar(100) not null ,
@@ -121,6 +128,7 @@ go
 
 
 Create table Ventas(
+
 Id int not null primary key identity (1,1),
 IdCliente int not null foreign key references Usuario(Id),
 --IdProducto int not null foreign key references Producto(Id),
@@ -151,27 +159,15 @@ go
 --)
 --go
 
-
-insert into CATEGORIA values ('Topes',0),('Macetas',0), ('Postes',0)
-
-go
-
-insert into Producto values ('Tope de estacionamiento', 'de hormigón', 1, 500, 'https://casadeladocreto.com/fotos/tope2.png',0,0)
-insert into Producto values ('Poste olimpico', 'de hormigón', 3, 1100, 'https://tucumanalambres.com.ar/wp-content/uploads/2020/02/poste-de-hormigon-olimpico-alambrado-alambres-tucuman.jpg',0,0)
-insert into Producto values ('Poste esquinero', 'de hormigón', 3, 700, 'https://lh3.googleusercontent.com/proxy/L2aEeSWV93rTpxACWlbwPCDMSC0L9EWT-8yuPbsLSNpfCdtwdNfH49ZXnVe1BbcnhrtghvnpemHiB_t7wxIKNdtdXVwCboyo42MLWsSUqbzWZUs4k4-AOvY',0,0)
-insert into Producto values ('Maceta Cubo', ' medianas para el Jardin', 2, 300, 'https://encrypted-tbn0.gstatic.com/images?q=tbn%3AANd9GcRu2Y0Y5J4FCBr3t3ljU9LCGS_SBcj2jKHTaA&usqp=CAU',0,0)
-insert into Producto values ('Maceta Souvenir', ' de cemento para Souvenir', 2, 150, 'https://i.ytimg.com/vi/hRWOayivDTk/hqdefault.jpg',0,0)
-insert into Producto values ('Maceta de interior', ' de cemento para Souvenir', 2, 150, 'https://i.ytimg.com/vi/hRWOayivDTk/hqdefault.jpg',0,0)
-
-
-
 go
 ------------------------------------------STORE---PROCEDURE-----------------------------------------------------------------
 
 create procedure spListarProductos --PRODUCTO-LISTAR
 as
 
-select a.id, a.Nombre, a.Descripcion, C.Nombre as DescCat, C.Id as IdCat,  a.ImagenUrl, a.Precio, a.Eliminado, a.Stock from Producto as A inner join Categoria as C on C.Id = a.IdCategoria
+select a.id, a.Nombre, a.Descripcion, C.Nombre as DescCat, C.Id as IdCat,  a.ImagenUrl, a.Precio, a.Eliminado, a.Stock from Producto as A 
+inner join Categoria as C on C.Id = a.IdCategoria
+where a.Eliminado != 1
 
 go
 
@@ -231,6 +227,7 @@ u.Eliminado
 from Usuario as u
 inner join TipoUsuario as t on t.Id = U.IdTipoUsuario
 left join Datos_Por_Usuario as Datos on Datos.IdUsuario = u.Id
+where u.Eliminado != 1
 
 
 go
@@ -393,15 +390,7 @@ values (@IdVenta, @IdProducto,@CantidadUnidades,@Precio)
 
 go
 
-exec spAgregarVenta 3,3,4000,'2020-03-03'
-exec spAgregarVenta 2,2,3000,'2020-03-03'
-exec spAgregarVenta 3,5,6000,'2020-03-03'
-exec spAgregarVenta 2,3,7000,'2018-03-03'
 
-exec spAgregarProductos_Por_Ventas 1,3,2,3200
-exec spAgregarProductos_Por_Ventas 2,1,1,3200
-exec spAgregarProductos_Por_Ventas 3,5,1,2500
-exec spAgregarProductos_Por_Ventas 4,3,10,2500
 
 go
 
@@ -580,8 +569,7 @@ Contraseña = @Contraseña, IdDireccion = @IdDireccion
 where ID = @ID
 
 go
-select * from Ventas
-select * from usuario
+
 --Create Procedure spModificarProveedor -- PROVEEDOR
 --@ID int,
 --@Nombre varchar(100),
@@ -633,8 +621,8 @@ create procedure spListarCompras
 as
 Select distinct v.Id, v.Total, v.Fecha, v.Cantidad
 from Ventas as V
-inner join Ventas_x_Usuario as VxU on Vxu.IdVenta = v.Id
-inner join Usuario as u on u.Id = VxU.IdCliente
+
+inner join Usuario as u on u.Id = v.IdCliente
 inner join Productos_Por_Ventas as PxV on PxV.IdVenta = v.Id
 inner join Producto as P on P.Id = PxV.IdProducto 
 
@@ -659,18 +647,32 @@ Create view vwListarRankingProductos
 
 as 
 
-Select top 10 p.Id, p.Nombre, p.Precio, p.Descripcion, Sum(ppv.CantidadUnidades) as CantidadVendidas, v.Fecha
+Select top 3 p.Id, p.Nombre, p.Precio, p.Descripcion, Sum(ppv.CantidadUnidades) as CantidadVendidas, v.Fecha
 from Producto as p
 inner join Productos_Por_Ventas as PpV on PpV.IdProducto = p.Id 
-inner join Ventas as v on v.id = ppv.IdVenta
+inner join Ventas as v on v.Id = ppv.IdVenta
 group by p.id,p.Nombre,p.Precio,p.Descripcion,p.IdCategoria,v.Fecha,v.Id
 
-having 1 > (select cast(datediff(dd,v.Fecha,GETDATE()) / 365.25 as int) as [Nueva] from ventas as ve 
+having 30 > (select (datediff(dd,v.Fecha,GETDATE())) as [Nueva] from ventas as ve 
 where ve.Id = v.Id
 )
 order by CantidadVendidas desc
 
 go
+
+Create view vwListarTotalRecaudadoMes
+
+as
+
+Select sum(PPV.CantidadUnidades * PPV.Precio) as Columna, sum(PPV.CantidadUnidades) as Otra
+from Productos_Por_Ventas as PPV
+inner join Ventas as v on v.Id = ppv.IdVenta
+where 30 > (select (datediff(dd,v.Fecha,GETDATE())) as [Nueva] from ventas as ve 
+where ve.Id = v.Id
+)
+go
+
+
 Create procedure spListarVentasCliente
 
 
@@ -701,4 +703,152 @@ go
 --order by PrecioRecaudado desc
 --where v.
 --go
+go
+
+create trigger tr_DescontarStock
+on Productos_Por_Ventas
+after insert
+as
+begin
+	declare @Cantidad int
+	declare @IdProducto int
+	select @Cantidad = CantidadUnidades, @IdProducto = IdProducto from inserted
+	update Producto set  Stock -= @Cantidad where Id = @IdProducto
+
+
+end
+
+go
+
+ insert into Usuario values ('test@cliente.com','Acliente','Testing','231231321','0176',2,0)
+ insert into Usuario values ('cliente@test.com','Acliente','Testing','231231321','0176',2,0)
+ insert into Usuario values ('cliente4@test.com','Acliente','Testing','2231321','0176',2,0)
+ insert into Usuario values ('cliente5@test.com','Bcliente','Testing','28831321','0176',2,0)
+ insert into Usuario values ('cliente6@test.com','Ccliente','Testing','299231321','0176',2,0)
+ insert into Usuario values ('cliente7@test.com','Dcliente','Testing','210231321','0176',2,0)
+ insert into Usuario values ('cliente8@test.com','Ecliente','Testing','211231321','0176',2,0)
+ insert into Usuario values ('cliente9@test.com','Fcliente','Testing','238931321','0176',2,0)
+ insert into Usuario values ('cliente10@test.com','Gcliente','Testing','2392231321','0176',2,0)
+ insert into Usuario values ('cliente11@test.com','Hcliente','Testing','237431321','0176',2,0)
+
+ go
+insert into CATEGORIA values ('Topes',0),('Macetas',0), ('Postes',0)
+
+go
+
+insert into Producto values ('Tope de estacionamiento', 'de hormigón', 1, 500, 'https://casadeladocreto.com/fotos/tope2.png',100,0)
+insert into Producto values ('Poste olimpico', 'de hormigón', 3, 1100, 'https://tucumanalambres.com.ar/wp-content/uploads/2020/02/poste-de-hormigon-olimpico-alambrado-alambres-tucuman.jpg',100,0)
+insert into Producto values ('Poste esquinero', 'de hormigón', 3, 700, 'https://laforestamaderas.com.ar/wp-content/uploads/2019/05/poste-esquinero-olimpico.jpg',100,0)
+insert into Producto values ('Maceta Cubo', ' medianas para el Jardin', 2, 300, 'https://encrypted-tbn0.gstatic.com/images?q=tbn%3AANd9GcRu2Y0Y5J4FCBr3t3ljU9LCGS_SBcj2jKHTaA&usqp=CAU',100,0)
+insert into Producto values ('Maceta Souvenir', ' de cemento para Souvenir', 2, 150, 'https://i.ytimg.com/vi/hRWOayivDTk/hqdefault.jpg',100,0)
+insert into Producto values ('Maceta de interior', ' de cemento para Souvenir', 2, 150, 'https://i.ytimg.com/vi/hRWOayivDTk/hqdefault.jpg',100,0)
+
+go
+
+
+
+insert into Ventas values (2,3,400,'2020-07-03')
+insert into Ventas values (3,6,3200,'2020-06-27')
+insert into Ventas values (4,8,8500,'2020-07-03')
+insert into Ventas values (5,4,6300,'2020-06-28')
+insert into Ventas values (6,5,20000,'2020-05-15')
+insert into Ventas values (7,2,27850,'2020-05-03')
+insert into Ventas values (8,3,3600,'2020-03-03')
+insert into Ventas values (9,2,2000,'2020-03-03')
+insert into Ventas values (10,1,700,'2020-07-03')
+insert into Ventas values (11,10,9000,'2020-05-03')
+insert into Ventas values (2,3,3950,'2020-07-14')
+insert into Ventas values (3,2,1220,'2020-03-02')
+insert into Ventas values (4,8,16800,'2020-04-16')
+insert into Ventas values (5,6,13500,'2019-08-19')
+insert into Ventas values (6,1,1000,'2020-05-03')
+insert into Ventas values (7,1,300,'2020-04-03')
+insert into Ventas values (8,3,4000,'2020-01-03')
+insert into Ventas values (9,2,5000,'2020-07-03')
+insert into Ventas values (10,9,11000,'2020-02-03')
+insert into Ventas values (11,12,17330,'2020-06-03')
+insert into Ventas values (5,1,790,'2020-07-03')
+insert into Ventas values (8,10,16000,'2020-05-03')
+insert into Ventas values (6,12,23000,'2020-04-03')
+insert into Ventas values (6,4,85000,'2020-07-03')
+
+
+
+insert into Productos_Por_Ventas values(1,6,1,1250)
+insert into Productos_Por_Ventas values(2,5,5,1200)
+insert into Productos_Por_Ventas values(3,4,2,900)
+insert into Productos_Por_Ventas values(4,3,4,800)
+insert into Productos_Por_Ventas values(5,2,7,1500)
+insert into Productos_Por_Ventas values(6,1,2,1750)
+insert into Productos_Por_Ventas values(7,6,4,2000)
+insert into Productos_Por_Ventas values(8,6,3,2750)
+insert into Productos_Por_Ventas values(9,5,6,3150)
+insert into Productos_Por_Ventas values(10,4,5,600)
+insert into Productos_Por_Ventas values(12,2,4,1500)
+insert into Productos_Por_Ventas values(13,1,6,350)
+insert into Productos_Por_Ventas values(14,2,8,800)
+insert into Productos_Por_Ventas values(15,1,5,2000)
+insert into Productos_Por_Ventas values(16,2,2,2500)
+insert into Productos_Por_Ventas values(17,5,3,4000)
+insert into Productos_Por_Ventas values(18,4,6,500)
+insert into Productos_Por_Ventas values(19,3,7,850)
+insert into Productos_Por_Ventas values(20,6,4,450)
+insert into Productos_Por_Ventas values(21,5,2,600)
+insert into Productos_Por_Ventas values(22,4,4,1500)
+insert into Productos_Por_Ventas values(23,3,3,1850)
+insert into Productos_Por_Ventas values(24,2,2,1100)
+insert into Productos_Por_Ventas values(1,5,1,700)
+insert into Productos_Por_Ventas values(3,6,3,1250)
+
+
+insert into Productos_Por_Ventas values(1,3,3,2500)
+insert into Productos_Por_Ventas values(2,6,3,1250)
+insert into Productos_Por_Ventas values(3,5,3,3000)
+insert into Productos_Por_Ventas values(4,2,3,800)
+
+insert into Productos_Por_Ventas values(6,4,3,300)
+insert into Productos_Por_Ventas values(9,3,3,400)
+insert into Productos_Por_Ventas values(10,1,3,1250)
+
+insert into Direccion values ('Washington',213,1617,'Buenos Aires','Tigre')
+insert into Direccion values ('Abreu',988,1617,'Buenos Aires','Pacheco')
+insert into Direccion values ('Quiroga',41,1617,'Buenos Aires','Del Viso')
+insert into Direccion values ('Santa Rosa',512,1617,'Buenos Aires','Villa Adelina')
+insert into Direccion values ('Olmos',516,1560,'Buenos Aires','Boulogne')
+insert into Direccion values ('Troman',963,1617,'Buenos Aires','Pacheco')
+insert into Direccion values ('Pichincha',132,1617,'Buenos Aires','Rincon de Mielberg')
+insert into Direccion values ('Rosale',848,1617,'Buenos Aires','Villa Urquiza')
+insert into Direccion values ('Rivadavia',854,1617,'Buenos Aires','Los Troncos')
+insert into Direccion values ('Asuncion',485,1617,'Buenos Aires','San Isidro')
+insert into Direccion values ('Washington',165,1617,'Buenos Aires','Vicente Lopez')
+
+insert into Contacto values ('cacerespedro@gmail.com','15155615')
+insert into Contacto values ('cliente2@gmail.com','155464452')
+insert into Contacto values ('cliente3@gmail.com','1556742')
+insert into Contacto values ('cliente4@gmail.com','155647552')
+insert into Contacto values ('cliente5@gmail.com','141152')
+insert into Contacto values ('cliente6@gmail.com','154525452')
+insert into Contacto values ('cliente6@gmail.com','15898952')
+insert into Contacto values ('cliente7@gmail.com','15252152')
+insert into Contacto values ('cliente8@gmail.com','159996652')
+insert into Contacto values ('cliente9@gmail.com','1798932')
+insert into Contacto values ('cliente10@gmail.com','0118515651')
+
+
+insert into Datos_Por_Usuario values (1,11,7)
+insert into Datos_Por_Usuario values (2,10,8)
+insert into Datos_Por_Usuario values (3,9,9)
+insert into Datos_Por_Usuario values (4,8,10)
+insert into Datos_Por_Usuario values (5,7,11)
+insert into Datos_Por_Usuario values (6,6,1)
+insert into Datos_Por_Usuario values (7,5,2)
+insert into Datos_Por_Usuario values (8,4,3)
+insert into Datos_Por_Usuario values (9,3,4)
+insert into Datos_Por_Usuario values (10,2,5)
+insert into Datos_Por_Usuario values (11,1,6)
+
+
+
+
+
 
